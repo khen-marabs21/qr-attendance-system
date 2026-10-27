@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Attendance Check-In</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #edf2f7; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
+    h2 { margin-top: 0; color: #2d3748; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; color: #4a5568; font-weight: bold; }
+    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 16px; background: #fff; text-transform: uppercase; }
+    button { width: 100%; padding: 12px; background-color: #38a169; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+    button:hover { background-color: #2f855a; }
+    #statusMsg { margin-top: 15px; text-align: center; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Online Class Check-In</h2>
+    <form id="attendanceForm">
+      <div class="form-group">
+        <label for="sectionSelect">Section</label>
+        <select id="sectionSelect" required>
+          <option value="">-- Select Your Section --</option>
+          <option value="OLCA311E056">OLCA311E056</option>
+          <option value="OLCA311E055">OLCA311E055</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="studentId">Student ID Number</label>
+        <input type="text" id="studentId" required placeholder="E.G., CA202412345">
+      </div>
+      <div class="form-group">
+        <label for="studentName">Full Name (Last Name, First Name)</label>
+        <input type="text" id="studentName" required placeholder="E.G., Dela Cruz, Juan">
+      </div>
+      <button type="submit">Submit Attendance</button>
+    </form>
+    <div id="statusMsg"></div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionCode = urlParams.get('session');
+
+    document.getElementById('attendanceForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const section = document.getElementById('sectionSelect').value;
+      const studentId = document.getElementById('studentId').value.trim();
+      const studentName = document.getElementById('studentName').value.trim();
+      const statusMsg = document.getElementById('statusMsg');
+
+      if (!sessionCode || !section) {
+        statusMsg.style.color = 'red';
+        statusMsg.innerText = 'Please select a section and use a valid QR session.';
+        return;
+      }
+
+      const response = await fetch('/api/submit-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionCode, section, studentId, studentName })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        statusMsg.style.color = 'green';
+        statusMsg.innerText = data.message;
+        document.getElementById('studentId').value = '';
+        document.getElementById('studentName').value = '';
+        document.getElementById('sectionSelect.selectedIndex').value = '';
+      } else {
+        statusMsg.style.color = 'red';
+        statusMsg.innerText = data.error || 'Submission failed.';
+      }
+    });
+  </script>
+</body>
+</html>
