@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard - Smart Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; }
+    .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1, h2 { color: #1a365d; }
+    .btn { background-color: #2b6cb0; color: white; border: none; padding: 10px 18px; font-size: 16px; border-radius: 4px; cursor: pointer; }
+    .btn:hover { background-color: #2c5282; }
+    .btn-excel { background-color: #2f855a; margin-left: 10px; text-decoration: none; display: inline-block; padding: 10px 18px; color: white; border-radius: 4px; }
+    .btn-excel:hover { background-color: #276749; }
+    input, select { padding: 10px; width: 220px; font-size: 16px; margin-right: 10px; margin-bottom: 10px; }
+    .filter-box { background: #edf2f7; padding: 15px; border-radius: 6px; margin-top: 25px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    #qrContainer { margin-top: 20px; text-align: center; }
+    #qrContainer img { max-width: 250px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #cbd5e0; padding: 10px; text-align: left; }
+    th { background-color: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Ms. Eva Jaravata - Attendance Dashboard</h1>
+    
+    <div>
+      <input type="text" id="subjectInput" placeholder="Enter Subject Name (e.g. IM2)" style="width: 300px;">
+      <button class="btn" onclick="startSession()">Generate Session QR</button>
+    </div>
+
+    <div id="qrContainer" style="display:none;">
+      <h2>Scan to Mark Attendance</h2>
+      <img id="qrImage" alt="Session QR Code">
+      <p>Have students scan this QR code using their mobile phones.</p>
+      <p id="qrLinkText"></p>
+      <a id="exportBtn" href="#" class="btn-excel" style="display:none;">Download CSV for Google Sheets</a>
+    </div>
+
+    <div class="filter-box">
+      <h3 style="margin: 0; width: 100%; color: #2d3748;">Filter Attendance Logs by Section</h3>
+      <select id="filterSection" onchange="filterLogs()">
+        <option value="">All Sections</option>
+        <option value="OLCA311E056">OLCA311E056</option>
+        <option value="OLCA311E055">OLCA311E055</option>
+      </select>
+    </div>
+
+    <h2>Live Attendance Logs</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Student Name</th>
+          <th>Section</th>
+          <th>Date & Time (Timestamp)</th>
+        </tr>
+      </thead>
+      <tbody id="logsBody">
+        <tr><td colspan="4">No active session selected.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let activeSession = '';
+    let pollInterval = null;
+    let allLogs = [];
+
+    async function startSession() {
+      const subject = document.getElementById('subjectInput').value.trim();
+      if (!subject) return alert('Please enter a subject name.');
+
+      const response = await fetch('/api/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        activeSession = data.sessionCode;
+        document.getElementById('qrImage').src = data.qrImage;
+        document.getElementById('qrLinkText').innerHTML = `<a href="${data.qrUrl}" target="_blank">${data.qrUrl}</a>`;
+        document.getElementById('qrContainer').style.display = 'block';
+        
+        const exportBtn = document.getElementById('exportBtn');
+        exportBtn.href = `/api/export-csv/${activeSession}`;
+        exportBtn.style.display = 'inline-block';
+
+        if (pollInterval) clearInterval(pollInterval);
+        fetchLogs();
+        pollInterval = setInterval(fetchLogs, 3000);
+      } else {
+        alert(data.error || 'Error creating session.');
+      }
+    }
+
+    async function fetchLogs() {
+      if (!activeSession) return;
+      const response = await fetch(`/api/attendance-logs/${activeSession}`);
+      const data = await response.json();
+      allLogs = data.logs;
+      filterLogs();
+    }
+
+    function filterLogs() {
+      const secVal = document.getElementById('filterSection').value.toUpperCase();
+      const tbody = document.getElementById('logsBody');
+      tbody.innerHTML = '';
+
+      const filtered = allLogs.filter(log => {
+        const matchSec = secVal === '' || log.section.toUpperCase() === secVal;
+        return matchSec;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">No attendance records found for this section.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(log => {
+        const logDate = new Date(log.timestamp);
+        const formattedDateTime = logDate.toLocaleDateString() + ' ' + logDate.toLocaleTimeString();
+
+        const row = `<tr>
+          <td>${log.student_id}</td>
+          <td>${log.student_name}</td>
+          <td>${log.section}</td>
+          <td>${formattedDateTime}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+  </script>
+</body>
+</html>
