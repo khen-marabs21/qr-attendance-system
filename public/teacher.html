@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard - Smart Attendance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; margin: 0; padding: 0; background-color: #f8fafc; color: #334155; }
+    .navbar { background-color: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .navbar-brand { font-size: 18px; color: #0f172a; font-weight: 600; }
+    .nav-links { display: flex; gap: 20px; align-items: center; }
+    .nav-links button { background: none; border: none; font-family: 'Poppins', sans-serif; cursor: pointer; text-decoration: none; color: #64748b; font-size: 14px; font-weight: 500; transition: color 0.2s; padding: 0; }
+    .nav-links button:hover, .nav-links button.active { color: #4f46e5; font-weight: 600; }
+    .navbar-right { color: #64748b; font-size: 14px; }
+    .container { max-width: 950px; margin: 30px auto; background: #ffffff; padding: 35px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+    h1 { color: #0f172a; font-weight: 600; font-size: 24px; margin-bottom: 25px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
+    h3 { color: #334155; font-size: 18px; font-weight: 500; margin-top: 30px; }
+    .btn { background-color: #4f46e5; color: white; border: none; padding: 12px 22px; font-size: 15px; font-weight: 500; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background-color: #4338ca; }
+    .btn-excel { background-color: #10b981; margin-left: 10px; text-decoration: none; display: inline-block; padding: 12px 22px; color: white; font-weight: 500; border-radius: 8px; transition: background 0.2s; }
+    .btn-excel:hover { background-color: #059669; }
+    input, select { padding: 12px 16px; width: 260px; font-size: 15px; font-family: 'Poppins', sans-serif; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; margin-right: 12px; margin-bottom: 12px; }
+    input:focus, select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+    .filter-box, .date-filter-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-top: 30px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+    #qrContainer { margin-top: 25px; text-align: center; background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    #qrContainer img { max-width: 220px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; border-radius: 8px; overflow: hidden; }
+    th, td { border: 1px solid #e2e8f0; padding: 14px 16px; text-align: left; font-size: 14px; }
+    th { background-color: #f1f5f9; color: #475569; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="navbar-brand">Smart Attendance System</div>
+    <div class="nav-links">
+      <button id="navDashboard" class="active" onclick="switchTab('dashboard')">Dashboard</button>
+      <button id="navRecords" onclick="switchTab('records')">Records / History</button>
+    </div>
+    <div class="navbar-right">Instructor: Ms. Eva Jaravata</div>
+  </div>
+
+  <!-- DASHBOARD TAB -->
+  <div id="dashboardTab" class="container tab-content active">
+    <h1>Attendance Dashboard</h1>
+    
+    <div style="display: flex; align-items: center; flex-wrap: wrap;">
+      <input type="text" id="subjectInput" placeholder="Enter Subject Name (e.g. IM2)">
+      <button class="btn" onclick="startSession()">Generate Session QR</button>
+    </div>
+
+    <div id="qrContainer" style="display:none;">
+      <h3 style="margin-top:0; color: #1e293b;">Scan to Mark Attendance</h3>
+      <img id="qrImage" alt="Session QR Code">
+      <p style="color: #64748b; font-size: 14px; margin: 10px 0;">Have students scan this QR code using their mobile phones.</p>
+      <p id="qrLinkText" style="word-break: break-all; font-size: 13px;"></p>
+      <a id="exportBtn" href="#" class="btn-excel" style="display:none;">Download CSV File</a>
+    </div>
+
+    <div class="filter-box">
+      <h3 style="margin: 0; width: 100%; color: #334155; font-size: 16px; font-weight: 500;">Filter Attendance Logs by Section</h3>
+      <select id="filterSection" onchange="filterLogs()">
+        <option value="">All Sections</option>
+        <option value="OLCA311E056">OLCA311E056</option>
+        <option value="OLCA311E055">OLCA311E055</option>
+      </select>
+    </div>
+
+    <h3>Live Attendance Logs</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Student Name</th>
+          <th>Section</th>
+          <th>Date & Time (Timestamp)</th>
+        </tr>
+      </thead>
+      <tbody id="logsBody">
+        <tr><td colspan="4" style="text-align: center; color: #94a3b8;">No active session selected.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- RECORDS / HISTORY TAB -->
+  <div id="recordsTab" class="container tab-content">
+    <h1>Attendance Records & History</h1>
+    
+    <div class="date-filter-box">
+      <h3 style="margin: 0; width: 100%; color: #334155; font-size: 16px; font-weight: 500;">Select Date Range</h3>
+      <div>
+        <label style="font-size: 13px; color: #64748b; display: block; margin-bottom: 4px;">From Date:</label>
+        <input type="date" id="startDate">
+      </div>
+      <div>
+        <label style="font-size: 13px; color: #64748b; display: block; margin-bottom: 4px;">To Date:</label>
+        <input type="date" id="endDate">
+      </div>
+      <div style="margin-top: 22px;">
+        <button class="btn" onclick="fetchHistory()">Filter History</button>
+        <a id="exportHistoryBtn" href="#" class="btn-excel" style="display:none;">Download CSV</a>
+      </div>
+    </div>
+
+    <h3>Archived Attendance Logs</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Session Code</th>
+          <th>Student ID</th>
+          <th>Student Name</th>
+          <th>Section</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="5" style="text-align: center; color: #94a3b8;">Select date range and click filter.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let activeSession = '';
+    let pollInterval = null;
+    let allLogs = [];
+
+    function switchTab(tabName) {
+      document.getElementById('dashboardTab').classList.remove('active');
+      document.getElementById('recordsTab').classList.remove('active');
+      document.getElementById('navDashboard').classList.remove('active');
+      document.getElementById('navRecords').classList.remove('active');
+
+      if (tabName === 'dashboard') {
+        document.getElementById('dashboardTab').classList.add('active');
+        document.getElementById('navDashboard').classList.add('active');
+      } else {
+        document.getElementById('recordsTab').classList.add('active');
+        document.getElementById('navRecords').classList.add('active');
+        fetchHistory(); // Automatic load history pag-click ng records
+      }
+    }
+
+    async function startSession() {
+      const subject = document.getElementById('subjectInput').value.trim();
+      if (!subject) return alert('Please enter a subject name.');
+
+      const response = await fetch('/api/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        activeSession = data.sessionCode;
+        document.getElementById('qrImage').src = data.qrImage;
+        document.getElementById('qrLinkText').innerHTML = `<a href="${data.qrUrl}" target="_blank" style="color:#4f46e5; text-decoration:none;">${data.qrUrl}</a>`;
+        document.getElementById('qrContainer').style.display = 'block';
+        
+        const exportBtn = document.getElementById('exportBtn');
+        exportBtn.href = `/api/export-csv/${activeSession}`;
+        exportBtn.style.display = 'inline-block';
+
+        if (pollInterval) clearInterval(pollInterval);
+        fetchLogs();
+        pollInterval = setInterval(fetchLogs, 3000);
+      } else {
+        alert(data.error || 'Error creating session.');
+      }
+    }
+
+    async function fetchLogs() {
+      if (!activeSession) return;
+      const response = await fetch(`/api/attendance-logs/${activeSession}`);
+      const data = await response.json();
+      allLogs = data.logs;
+      filterLogs();
+    }
+
+    function filterLogs() {
+      const secVal = document.getElementById('filterSection').value.toUpperCase();
+      const tbody = document.getElementById('logsBody');
+      tbody.innerHTML = '';
+
+      const filtered = allLogs.filter(log => {
+        const matchSec = secVal === '' || log.section.toUpperCase() === secVal;
+        return matchSec;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">No attendance records found for this section.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(log => {
+        const logDate = new Date(log.timestamp);
+        const formattedDateTime = logDate.toLocaleDateString() + ' ' + logDate.toLocaleTimeString();
+
+        const row = `<tr>
+          <td>${log.student_id}</td>
+          <td>${log.student_name}</td>
+          <td>${log.section}</td>
+          <td>${formattedDateTime}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    async function fetchHistory() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      let url = '/api/attendance-history?';
+      if (startDate) url += `startDate=${startDate}&`;
+      if (endDate) url += `endDate=${endDate}`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+      const tbody = document.getElementById('historyBody');
+      tbody.innerHTML = '';
+
+      // I-update ang download CSV button para sa history
+      const exportHistoryBtn = document.getElementById('exportHistoryBtn');
+      let csvUrl = '/api/export-history-csv?';
+      if (startDate) csvUrl += `startDate=${startDate}&`;
+      if (endDate) csvUrl += `endDate=${endDate}`;
+      exportHistoryBtn.href = csvUrl;
+      exportHistoryBtn.style.display = 'inline-block';
+
+      if (data.logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">No records found for the selected date range.</td></tr>';
+        return;
+      }
+
+      data.logs.forEach(log => {
+        const logDate = new Date(log.timestamp);
+        const formattedDateTime = logDate.toLocaleDateString() + ' ' + logDate.toLocaleTimeString();
+
+        const row = `<tr>
+          <td>${log.session_code}</td>
+          <td>${log.student_id}</td>
+          <td>${log.student_name}</td>
+          <td>${log.section}</td>
+          <td>${formattedDateTime}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+  </script>
+</body>
+</html>
